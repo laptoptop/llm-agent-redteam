@@ -61,6 +61,23 @@ empty responses which both the UI and garak scored as "nothing happened". Counti
 empty responses is a mandatory step before trusting any pass rate — see
 `garak-baseline.md`.
 
+## Roadmap
+
+The writeups above are manual work. The next step is an agent-aware harness that
+does the same thing automatically — because a model scanner cannot see tools:
+
+- `01` direct system-prompt / scope override
+- `02` Thought-Action-Observation replay (fake tool output)
+- `03` indirect injection via tool output or retrieved document
+- `04` data exfiltration through a legitimate tool call
+- `05` privilege escalation via tool misuse, with out-of-band canary callbacks to
+  prove egress (the part no OSS harness ships)
+
+Each module logs the full tool-call trace and reports payload + trace + impact per
+finding. Input: endpoint URL + tool schema. This repo stays the home for both the
+case studies and the tool; it only splits into a separate repo if the harness grows
+to need its own release cycle.
+
 ## Scope note
 
 DVLA is an intentionally vulnerable target. These notes are about the class of bug
