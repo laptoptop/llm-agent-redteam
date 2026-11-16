@@ -42,6 +42,8 @@ agent-aware harness rather than running a scanner and calling it a day.
 
 ## Files
 
+- `text-vs-impact.md` — why reply-text verdicts over- and under-report on agents, with
+  measurements from this harness, HackMyAgent and AgentDojo.
 - `dvla-flag2-writeup.md` — full chain for the SQLi finding, including every failed
   attempt and why it failed.
 - `model-comparison.md` — format-compliance benchmark and exploit matrix per model.
