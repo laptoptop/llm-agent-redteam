@@ -33,6 +33,9 @@ class TargetConfig:
     max_iterations: int = 6
     dvla_repo: str = "."
     system_message: str = DVLA_SYSTEM_MSG
+    #: keep conversation memory so prior turns are visible to the model. Needed
+    #: because some payload framings only land when there is session history.
+    stateful: bool = False
 
 
 class DVLAAgentTarget:
@@ -46,6 +49,7 @@ class DVLAAgentTarget:
         sys.path.insert(0, os.path.abspath(cfg.dvla_repo))
 
         from langchain.agents import ConversationalChatAgent, AgentExecutor
+        from langchain.memory import ConversationBufferMemory
         from langchain_litellm import ChatLiteLLM
         from tools import get_current_user_tool, get_recent_transactions_tool
 
@@ -60,19 +64,42 @@ class DVLAAgentTarget:
         agent = ConversationalChatAgent.from_llm_and_tools(
             llm=llm, tools=tools, verbose=False, system_message=cfg.system_message
         )
+        self._memory = (
+            ConversationBufferMemory(
+                memory_key="chat_history", return_messages=True, output_key="output"
+            )
+            if cfg.stateful
+            else None
+        )
         self._executor = AgentExecutor.from_agent_and_tools(
             agent=agent,
             tools=tools,
+            memory=self._memory,
             return_intermediate_steps=True,
             handle_parsing_errors=True,
             max_iterations=cfg.max_iterations,
         )
 
+    def _invoke(self, payload: str):
+        if self._memory is not None:
+            return self._executor.invoke({"input": payload})
+        return self._executor.invoke({"input": payload, "chat_history": []})
+
+    def seed(self, prompts: list[str]) -> list[str]:
+        """Run benign turns so the payload is delivered into an existing session."""
+        replies = []
+        for p in prompts:
+            try:
+                replies.append(str(self._invoke(p)["output"]))
+            except Exception as e:  # noqa: BLE001 - seeding is best effort
+                replies.append(f"<seed failed: {e!r}>")
+        return replies
+
     def run(self, module: str, payload: str) -> RunTrace:
         trace = RunTrace(module=module, model=self.cfg.model, payload=payload)
         try:
             with Stopwatch() as sw:
-                result = self._executor.invoke({"input": payload, "chat_history": []})
+                result = self._invoke(payload)
             trace.duration_s = round(sw.elapsed, 1)
             for i, (action, observation) in enumerate(result["intermediate_steps"], 1):
                 trace.add(i, action.tool, action.tool_input, observation)

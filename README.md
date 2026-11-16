@@ -63,12 +63,14 @@ empty responses is a mandatory step before trusting any pass rate — see
 
 ## Roadmap
 
-Status: **v0.1 in progress** — modules 01 and 02 are implemented and run against two
-models (`harness/`).
+Status: **v0.2** — modules 01-03 implemented and run against two models (`harness/`).
+Session-state support (`--history`) and DB-seeding modules are in; module 03 returns a
+negative on both models today, and the report says so rather than hiding it.
 
 - [x] `01` direct system-prompt / scope override
 - [x] `02` Thought-Action-Observation replay (fake tool output)
-- [ ] `03` indirect injection via tool output or retrieved document
+- [x] `03` indirect injection via tool output (payment-memo staging in the target DB)
+- [ ] `03b` indirect injection via retrieved document / RAG content
 - [ ] `04` data exfiltration through a legitimate tool call
 - [ ] `05` privilege escalation via tool misuse, with out-of-band canary callbacks to
   prove egress (the part no OSS harness ships)
@@ -78,9 +80,10 @@ finding. Input: endpoint URL + tool schema. This repo stays the home for both th
 case studies and the tool; it only splits into a separate repo if the harness grows
 to need its own release cycle.
 
-Sample output: [`harness/reports/gemma4-12b.md`](harness/reports/gemma4-12b.md) and
-[`harness/reports/qwen2.5-7b.md`](harness/reports/qwen2.5-7b.md) — same payloads, two
-models, different verdicts.
+Sample output: [`harness/reports/gemma4-12b.md`](harness/reports/gemma4-12b.md),
+[`harness/reports/qwen2.5-7b.md`](harness/reports/qwen2.5-7b.md) and
+[`harness/reports/qwen2.5-7b-history.md`](harness/reports/qwen2.5-7b-history.md) —
+same payloads, two models, and the state-dependent flip in one of them.
 
 ## Scope note
 
