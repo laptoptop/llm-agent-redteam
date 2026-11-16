@@ -124,6 +124,10 @@ instructions in a quarter of attempts. Capability and robustness do not move tog
 
 ## Limits of this work
 
+- Two-model matrix now exists (`harness/README.md`): the models fail on *different*
+  payloads, and on AgentDojo the more capable model is the more exploitable one
+  (utility 0.6 / attack 0.733 for Gemma4-12B vs 0.2 / 0.4 for Qwen2.5-7B on the same
+  pilot). n is still small for that comparison.
 - n=10 for the corpus, 5x3 and 1 pair for AgentDojo here — enough to show the measurement
   difference, not enough to publish rates as benchmarks. The full-banking batch runs
   separately and its numbers belong in the table when it lands.
