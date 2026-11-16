@@ -1,15 +1,21 @@
-"""Agent target adapter.
+"""Agent target adapters.
 
-WHY THIS EXISTS: a model scanner sends a prompt and reads text back. An agent adds
-a tool-call layer, and that is where the interesting findings live (a UNION string
-reaching a SQL tool, a tool output carrying another user's password). This adapter
-drives a real agent and returns the tool-call trace, not just the final answer.
+WHY THIS EXISTS: a model scanner sends a prompt and reads text back. An agent adds a
+tool-call layer, and that is where the interesting findings live (a UNION string
+reaching a SQL tool, a tool output carrying another user's password). These adapters
+drive a real agent and return the tool-call trace, not just the final answer.
 
-The DVLA adapter is deliberately thin: it reuses DVLA's own `ConversationalChatAgent`
-wiring so the harness tests the same code path a user hits, not a re-implementation.
+Two targets so far:
+
+  dvla         a checkout of Damn Vulnerable LLM Agent (`tools` module in that repo)
+  mock_support the harness's own small support agent with an outbound HTTP tool
+
+Both use the same langchain wiring as the app they stand in for, so the harness
+exercises the real code path rather than a re-implementation.
 """
 from __future__ import annotations
 
+import importlib
 import os
 import sys
 from dataclasses import dataclass
@@ -31,27 +37,34 @@ class TargetConfig:
     temperature: float = 0.0
     max_tokens: int = 1200
     max_iterations: int = 6
-    dvla_repo: str = "."
-    system_message: str = DVLA_SYSTEM_MSG
+    #: directory to put on sys.path before importing the tools module
+    tools_path: str = "."
+    tools_module: str = "tools"
+    #: overrides the module's SYSTEM_MESSAGE when set
+    system_message: str | None = None
     #: keep conversation memory so prior turns are visible to the model. Needed
     #: because some payload framings only land when there is session history.
     stateful: bool = False
 
 
-class DVLAAgentTarget:
-    """Drives DVLA's agent (langchain ConversationalChatAgent) over an
-    OpenAI-compatible endpoint and records every tool call."""
+class LangchainAgentTarget:
+    """Generic adapter: langchain conversational agent + whatever tools module."""
 
-    name = "dvla-agent"
-
-    def __init__(self, cfg: TargetConfig) -> None:
+    def __init__(self, cfg: TargetConfig, name: str = "agent") -> None:
         self.cfg = cfg
-        sys.path.insert(0, os.path.abspath(cfg.dvla_repo))
+        self.name = name
+        sys.path.insert(0, os.path.abspath(cfg.tools_path))
 
         from langchain.agents import ConversationalChatAgent, AgentExecutor
         from langchain.memory import ConversationBufferMemory
         from langchain_litellm import ChatLiteLLM
-        from tools import get_current_user_tool, get_recent_transactions_tool
+
+        mod = importlib.import_module(cfg.tools_module)
+        tools = mod.TOOLS if hasattr(mod, "TOOLS") else [
+            mod.get_current_user_tool, mod.get_recent_transactions_tool
+        ]
+        system_message = cfg.system_message or getattr(mod, "SYSTEM_MESSAGE",
+                                                       DVLA_SYSTEM_MSG)
 
         llm = ChatLiteLLM(
             model=cfg.model,
@@ -60,9 +73,8 @@ class DVLAAgentTarget:
             streaming=False,  # streaming=True returns empty content in this stack
             api_base=cfg.api_base,
         )
-        tools = [get_current_user_tool, get_recent_transactions_tool]
         agent = ConversationalChatAgent.from_llm_and_tools(
-            llm=llm, tools=tools, verbose=False, system_message=cfg.system_message
+            llm=llm, tools=tools, verbose=False, system_message=system_message
         )
         self._memory = (
             ConversationBufferMemory(
@@ -107,3 +119,21 @@ class DVLAAgentTarget:
         except Exception as e:  # noqa: BLE001 - a crashed run is data, not a stop
             trace.error = repr(e)[:300]
         return trace
+
+
+class DVLAAgentTarget(LangchainAgentTarget):
+    """DVLA checkout: tools live in the repo root (`tools.py`)."""
+
+    def __init__(self, cfg: TargetConfig) -> None:
+        cfg.tools_path = cfg.tools_path or "."
+        cfg.tools_module = cfg.tools_module or "tools"
+        super().__init__(cfg, name="dvla-agent")
+
+
+class MockSupportTarget(LangchainAgentTarget):
+    """Harness's own support agent: has an outbound HTTP tool and an admin tool."""
+
+    def __init__(self, cfg: TargetConfig) -> None:
+        cfg.tools_path = os.path.join(os.path.dirname(__file__), "targets")
+        cfg.tools_module = "mock_support.tools"
+        super().__init__(cfg, name="mock-support-agent")
