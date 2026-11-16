@@ -81,7 +81,10 @@ def build_pipeline(client: OpenAI, model: str, system_message: str = DEFAULT_SYS
         llm,
         ToolsExecutionLoop([recorder, llm]),
     ])
-    pipeline.name = model
+    # AgentDojo's attack templates match on a known model name; "Local model" is the
+    # entry for self-hosted endpoints. Keep the real name in the run record.
+    pipeline.name = os.getenv("AGENTDOJO_PIPELINE_NAME", "Local model")
+    pipeline.model_id = model
     return pipeline, recorder
 
 
