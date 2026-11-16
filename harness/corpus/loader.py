@@ -10,7 +10,7 @@ from pathlib import Path
 
 import yaml
 
-REQUIRED = ("id", "category", "name", "expected_impact", "payload")
+REQUIRED = ("id", "category", "name", "expected_impact", "payload", "canary")
 IMPACTS = ("tool_argument", "tool_output", "data_egress", "answer_leak")
 
 
