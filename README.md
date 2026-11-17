@@ -9,6 +9,8 @@ This repository is my work on that problem: a small lab where I attack agents I 
 measure exactly what an attacker can achieve, and record the evidence instead of an
 opinion.
 
+![How a note inside a document becomes a tool call: four scenes](docs/agent-explainer.gif)
+
 ---
 
 ## The problem this exists to solve
